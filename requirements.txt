@@ -1,1 +1,2 @@
-homeassistant
+homeassistant>=2024.11.0
+pip>=21.3.1

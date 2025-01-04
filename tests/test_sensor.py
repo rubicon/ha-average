@@ -1,6 +1,8 @@
 """The test for the average sensor platform."""
+
 # pylint: disable=redefined-outer-name
-import json
+from __future__ import annotations
+
 import logging
 from asyncio import sleep
 from datetime import timedelta
@@ -10,6 +12,7 @@ import homeassistant.util.dt as dt_util
 import pytest
 from homeassistant.components.climate import DOMAIN as CLIMATE_DOMAIN
 from homeassistant.components.sensor import DOMAIN as SENSOR
+from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.components.water_heater import DOMAIN as WATER_HEATER_DOMAIN
 from homeassistant.components.weather import DOMAIN as WEATHER_DOMAIN
 from homeassistant.const import (
@@ -19,69 +22,53 @@ from homeassistant.const import (
     CONF_ENTITIES,
     CONF_NAME,
     CONF_PLATFORM,
-    DEVICE_CLASS_TEMPERATURE,
+    CONF_UNIQUE_ID,
     STATE_UNAVAILABLE,
     STATE_UNKNOWN,
-    TEMP_FAHRENHEIT,
+    UnitOfTemperature,
 )
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, State
 from homeassistant.helpers.template import Template
 from homeassistant.setup import async_setup_component
 from homeassistant.util.unit_system import TEMPERATURE_UNITS
-from pytest import raises
 from pytest_homeassistant_custom_component.common import assert_setup_component
 from voluptuous import Invalid
 
-from custom_components.average.const import CONF_DURATION, CONF_END, CONF_START, DOMAIN
+from custom_components.average.const import (
+    CONF_DURATION,
+    CONF_END,
+    CONF_PRECISION,
+    CONF_START,
+    DOMAIN,
+)
 from custom_components.average.sensor import (
     AverageSensor,
     async_setup_platform,
     check_period_keys,
 )
 
-# pylint: disable=ungrouped-imports
-try:
-    from homeassistant.components.recorder.models import LazyState
-except ImportError:
-    from homeassistant.components.history import LazyState
+from .const import TEST_ENTITY_IDS, TEST_NAME, TEST_UNIQUE_ID
 
 
-TEST_UNIQUE_ID = "test_id"
-TEST_NAME = "test_name"
-TEST_ENTITY_IDS = ["sensor.test_monitored"]
-TEST_VALUES = [3, 11.16, -17, 4.29, -29, -16.8, 8, 5, -4.7, 5, -15]
+@pytest.fixture
+def default_sensor_config():
+    """Return default test config for AverageSensor."""
+    return {
+        CONF_UNIQUE_ID: TEST_UNIQUE_ID,
+        CONF_NAME: TEST_NAME,
+        # CONF_START: None,
+        CONF_END: Template("{{ now() }}"),
+        CONF_DURATION: timedelta(minutes=3),
+        CONF_ENTITIES: TEST_ENTITY_IDS,
+        CONF_PRECISION: 2,
+        # CONF_PROCESS_UNDEF_AS: None,
+    }
 
 
-@pytest.fixture(autouse=True)
-def mock_legacy_time(legacy_patchable_time):
-    """Make time patchable for all the tests."""
-    yield
-
-
-@pytest.fixture()
-def default_sensor(hass: HomeAssistant):
+@pytest.fixture
+def default_sensor(hass: HomeAssistant, default_sensor_config):
     """Create an AverageSensor with default values."""
-    entity = AverageSensor(
-        hass,
-        TEST_UNIQUE_ID,
-        TEST_NAME,
-        None,
-        Template("{{ now() }}"),
-        timedelta(minutes=3),
-        TEST_ENTITY_IDS,
-        2,
-        None,
-    )
-    entity.hass = hass
-    return entity
-
-
-class Objectview:
-    """Mock dict to object."""
-
-    def __init__(self, d):
-        """Mock dict to object."""
-        self.__dict__ = d
+    return AverageSensor(hass, default_sensor_config)
 
 
 async def test_valid_check_period_keys(hass: HomeAssistant):
@@ -113,19 +100,19 @@ async def test_valid_check_period_keys(hass: HomeAssistant):
 
 async def test_invalid_check_period_keys(hass: HomeAssistant):
     """Test period keys check."""
-    with raises(Invalid):
+    with pytest.raises(Invalid):
         check_period_keys(
             {
                 CONF_END: 20,
             }
         )
-    with raises(Invalid):
+    with pytest.raises(Invalid):
         check_period_keys(
             {
                 CONF_START: 21,
             }
         )
-    with raises(Invalid):
+    with pytest.raises(Invalid):
         check_period_keys(
             {
                 CONF_START: 22,
@@ -151,7 +138,9 @@ async def test_setup_platform(hass: HomeAssistant):
     assert async_add_entities.called
 
 
-async def test_entity_initialization(hass: HomeAssistant, default_sensor):
+async def test_entity_initialization(
+    hass: HomeAssistant, default_sensor, default_sensor_config
+):
     """Test sensor initialization."""
     expected_attributes = {
         "available_sources": 0,
@@ -164,38 +153,25 @@ async def test_entity_initialization(hass: HomeAssistant, default_sensor):
     assert default_sensor.name == TEST_NAME
     assert default_sensor.should_poll is True
     assert default_sensor.available is False
-    assert default_sensor.state == STATE_UNAVAILABLE
-    assert default_sensor.unit_of_measurement is None
+    assert default_sensor.native_value is None
+    assert default_sensor.native_unit_of_measurement is None
     assert default_sensor.icon is None
     assert default_sensor.extra_state_attributes == expected_attributes
 
-    entity = AverageSensor(
-        hass,
-        None,
-        TEST_NAME,
-        None,
-        Template("{{ now() }}"),
-        timedelta(minutes=3),
-        TEST_ENTITY_IDS,
-        2,
-        None,
-    )
-
+    config = default_sensor_config.copy()
+    config[CONF_UNIQUE_ID] = None
+    entity = AverageSensor(hass, config)
+    #
     assert entity.unique_id is None
 
-    entity = AverageSensor(
-        hass,
-        "__legacy__",
-        TEST_NAME,
-        None,
-        Template("{{ now() }}"),
-        timedelta(minutes=3),
-        TEST_ENTITY_IDS,
-        2,
-        None,
+    config = default_sensor_config.copy()
+    config[CONF_UNIQUE_ID] = "__legacy__"
+    entity = AverageSensor(hass, config)
+    #
+    assert entity.unique_id in (
+        "2ef66732fb7155dce84ad53afe910beba59cfad4",
+        "ca6b83d00637cf7d1e2f5c30b4f4f0402ad2fc53",
     )
-
-    assert entity.unique_id == "2ef66732fb7155dce84ad53afe910beba59cfad4"
 
 
 async def test_async_setup_platform(hass: HomeAssistant):
@@ -247,61 +223,41 @@ async def test__has_state():
 # pylint: disable=protected-access
 async def test__get_temperature(default_sensor):
     """Test temperature getter."""
-    state = LazyState(
-        Objectview(
-            {
-                "entity_id": "weather.test",
-                "state": "test",
-                "attributes": json.dumps({"temperature": 25}),
-            }
-        )
+    state = State(
+        "weather.test",
+        "test",
+        {"temperature": 25},
     )
     assert default_sensor._get_temperature(state) == 25
 
-    state = LazyState(
-        Objectview(
-            {
-                "entity_id": "climate.test",
-                "state": "test",
-                "attributes": json.dumps({"current_temperature": 16}),
-            }
-        )
+    state = State(
+        "climate.test",
+        "test",
+        {"current_temperature": 16},
     )
     assert default_sensor._get_temperature(state) == 16
 
-    state = LazyState(
-        Objectview(
-            {
-                "entity_id": "sensor.test",
-                "state": 125,
-                "attributes": json.dumps({ATTR_UNIT_OF_MEASUREMENT: TEMP_FAHRENHEIT}),
-                "last_changed": dt_util.now(),
-            }
-        )
+    state = State(
+        "sensor.test",
+        "125",
+        {ATTR_UNIT_OF_MEASUREMENT: UnitOfTemperature.FAHRENHEIT},
+        dt_util.now(),
     )
     assert round(default_sensor._get_temperature(state), 3) == 51.667
 
-    state = LazyState(
-        Objectview(
-            {
-                "entity_id": "sensor.test",
-                "state": "",
-                "attributes": json.dumps({ATTR_UNIT_OF_MEASUREMENT: TEMP_FAHRENHEIT}),
-                "last_changed": dt_util.now(),
-            }
-        )
+    state = State(
+        "sensor.test",
+        "",
+        {ATTR_UNIT_OF_MEASUREMENT: UnitOfTemperature.FAHRENHEIT},
+        dt_util.now(),
     )
     assert default_sensor._get_temperature(state) is None
 
-    state = LazyState(
-        Objectview(
-            {
-                "entity_id": "sensor.test",
-                "state": "qwe",
-                "attributes": json.dumps({ATTR_UNIT_OF_MEASUREMENT: TEMP_FAHRENHEIT}),
-                "last_changed": dt_util.now(),
-            }
-        )
+    state = State(
+        "sensor.test",
+        "qwe",
+        {ATTR_UNIT_OF_MEASUREMENT: UnitOfTemperature.FAHRENHEIT},
+        dt_util.now(),
     )
     assert default_sensor._get_temperature(state) is None
 
@@ -311,51 +267,35 @@ async def test__get_state_value(default_sensor):
     """Test state getter."""
     default_sensor._undef = "Undef"
 
-    state = LazyState(
-        Objectview(
-            {
-                "entity_id": "sensor.test",
-                "state": "None",
-                "attributes": json.dumps({ATTR_UNIT_OF_MEASUREMENT: None}),
-                "last_changed": dt_util.now(),
-            }
-        )
+    state = State(
+        "sensor.test",
+        "None",
+        {ATTR_UNIT_OF_MEASUREMENT: None},
+        dt_util.now(),
     )
     assert default_sensor._get_state_value(state) == "Undef"
 
-    state = LazyState(
-        Objectview(
-            {
-                "entity_id": "sensor.test",
-                "state": "asd",
-                "attributes": json.dumps({ATTR_UNIT_OF_MEASUREMENT: None}),
-                "last_changed": dt_util.now(),
-            }
-        )
+    state = State(
+        "sensor.test",
+        "asd",
+        {ATTR_UNIT_OF_MEASUREMENT: None},
+        dt_util.now(),
     )
     assert default_sensor._get_state_value(state) is None
 
-    state = LazyState(
-        Objectview(
-            {
-                "entity_id": "sensor.test",
-                "state": 21,
-                "attributes": json.dumps({ATTR_UNIT_OF_MEASUREMENT: None}),
-                "last_changed": dt_util.now(),
-            }
-        )
+    state = State(
+        "sensor.test",
+        "21",
+        {ATTR_UNIT_OF_MEASUREMENT: None},
+        dt_util.now(),
     )
     assert default_sensor._get_state_value(state) == 21
 
-    state = LazyState(
-        Objectview(
-            {
-                "entity_id": "sensor.test",
-                "state": 34,
-                "attributes": json.dumps({ATTR_UNIT_OF_MEASUREMENT: None}),
-                "last_changed": dt_util.now(),
-            }
-        )
+    state = State(
+        "sensor.test",
+        "34",
+        {ATTR_UNIT_OF_MEASUREMENT: None},
+        dt_util.now(),
     )
     assert default_sensor._get_state_value(state) == 34
 
@@ -369,121 +309,99 @@ async def test__init_mode(hass: HomeAssistant, default_sensor, caplog):
 
     assert default_sensor._temperature_mode is None
     assert default_sensor._attr_device_class is None
-    assert default_sensor._attr_unit_of_measurement is None
+    assert default_sensor._attr_native_unit_of_measurement is None
     assert default_sensor._attr_icon is None
 
     # Detect by device class
-    state = LazyState(
-        Objectview(
-            {
-                "entity_id": "sensor.test",
-                "state": None,
-                "attributes": json.dumps(
-                    {
-                        ATTR_DEVICE_CLASS: DEVICE_CLASS_TEMPERATURE,
-                    }
-                ),
-            }
-        )
+    state = State(
+        "sensor.test",
+        "None",
+        {
+            ATTR_DEVICE_CLASS: SensorDeviceClass.TEMPERATURE,
+        },
     )
 
     caplog.clear()
     default_sensor._temperature_mode = None
     default_sensor._attr_device_class = None
-    default_sensor._attr_unit_of_measurement = None
+    default_sensor._attr_native_unit_of_measurement = None
 
     default_sensor._init_mode(state)
 
     assert default_sensor._temperature_mode is True
-    assert default_sensor._attr_device_class is DEVICE_CLASS_TEMPERATURE
+    assert default_sensor._attr_device_class is SensorDeviceClass.TEMPERATURE
     assert (
-        default_sensor._attr_unit_of_measurement is hass.config.units.temperature_unit
+        default_sensor._attr_native_unit_of_measurement
+        is hass.config.units.temperature_unit
     )
     assert len(caplog.records) == 1
 
     # Detect by measuring unit
     for unit in TEMPERATURE_UNITS:
-        state = LazyState(
-            Objectview(
-                {
-                    "entity_id": "sensor.test",
-                    "state": None,
-                    "attributes": json.dumps(
-                        {
-                            ATTR_UNIT_OF_MEASUREMENT: unit,
-                        }
-                    ),
-                }
-            )
+        state = State(
+            "sensor.test",
+            "None",
+            {
+                ATTR_UNIT_OF_MEASUREMENT: unit,
+            },
         )
 
         caplog.clear()
         default_sensor._temperature_mode = None
         default_sensor._attr_device_class = None
-        default_sensor._attr_unit_of_measurement = None
+        default_sensor._attr_native_unit_of_measurement = None
 
         default_sensor._init_mode(state)
 
         assert default_sensor._temperature_mode is True
-        assert default_sensor._attr_device_class is DEVICE_CLASS_TEMPERATURE
+        assert default_sensor._attr_device_class is SensorDeviceClass.TEMPERATURE
         assert (
-            default_sensor._attr_unit_of_measurement
+            default_sensor._attr_native_unit_of_measurement
             == hass.config.units.temperature_unit
         )
         assert len(caplog.records) == 1
 
     # Detect by domain
     for domain in (WEATHER_DOMAIN, CLIMATE_DOMAIN, WATER_HEATER_DOMAIN):
-        state = LazyState(
-            Objectview(
-                {
-                    "entity_id": f"{domain}.test",
-                    "state": None,
-                    "attributes": json.dumps({}),
-                }
-            )
+        state = State(
+            f"{domain}.test",
+            "None",
         )
 
         caplog.clear()
         default_sensor._temperature_mode = None
         default_sensor._attr_device_class = None
-        default_sensor._attr_unit_of_measurement = None
+        default_sensor._attr_native_unit_of_measurement = None
 
         default_sensor._init_mode(state)
 
         assert default_sensor._temperature_mode is True
-        assert default_sensor._attr_device_class is DEVICE_CLASS_TEMPERATURE
+        assert default_sensor._attr_device_class is SensorDeviceClass.TEMPERATURE
         assert (
-            default_sensor._attr_unit_of_measurement
+            default_sensor._attr_native_unit_of_measurement
             == hass.config.units.temperature_unit
         )
         assert len(caplog.records) == 1
 
     # Can't detect
-    state = LazyState(
-        Objectview(
-            {
-                "entity_id": "sensor.test",
-                "state": None,
-                "attributes": json.dumps(
-                    {
-                        ATTR_ICON: "some_icon",
-                    }
-                ),
-            }
-        )
+    state = State(
+        "sensor.test",
+        "None",
+        {
+            ATTR_ICON: "some_icon",
+        },
     )
 
     caplog.clear()
     default_sensor._temperature_mode = None
     default_sensor._attr_device_class = None
-    default_sensor._attr_unit_of_measurement = None
+    default_sensor._attr_native_unit_of_measurement = None
 
     default_sensor._init_mode(state)
 
     assert default_sensor._temperature_mode is False
     assert default_sensor._attr_device_class is None
-    assert default_sensor._attr_unit_of_measurement is None
+    assert default_sensor._attr_native_unit_of_measurement is None
     assert default_sensor._attr_icon == "some_icon"
     assert len(caplog.records) == 1
 
@@ -497,10 +415,10 @@ async def test__init_mode(hass: HomeAssistant, default_sensor, caplog):
 
 async def test_update(default_sensor):
     """Test update throttler."""
-    with patch.object(default_sensor, "_update_state") as ups:
-        default_sensor.update()
+    with patch.object(default_sensor, "_async_update_state") as ups:
+        await default_sensor.async_update()
         await sleep(1)
-        default_sensor.update()
+        await default_sensor.async_update()
 
         assert ups.call_count == 1
 
@@ -508,5 +426,4 @@ async def test_update(default_sensor):
 # pylint: disable=protected-access
 async def test__update_period(default_sensor):
     """Test period updater."""
-    # default_sensor._update_period()
-    # todo; pylint: disable=fixme
+    # TODO(Limych): ;   #noqa: TD003

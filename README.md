@@ -47,7 +47,8 @@ I also suggest you [visit the support topic][forum] on the community forum.
 ### Install from HACS (recommended)
 
 1. Have [HACS][hacs] installed, this will allow you to easily manage and track updates.
-1. Search for "Average".
+1. Search in HACS for "Average" integration or just press the button below:\
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)][hacs-repository]
 1. Click Install below the found integration.
 
 ... then if you want to use `configuration.yaml` to configure sensor...
@@ -96,12 +97,11 @@ or you can combine this variants for some reason.
 
 <p align="center">* * *</p>
 I put a lot of work into making this repo and component available and updated to inspire and help others! I will be glad to receive thanks from you — it will give me new strength and add enthusiasm:
-<p align="center"><br>
-<a href="https://www.patreon.com/join/limych?" target="_blank"><img src="http://khrolenok.ru/support_patreon.png" alt="Patreon" width="250" height="48"></a>
-<br>or&nbsp;support via Bitcoin or Etherium:<br>
-<a href="https://sochain.com/a/mjz640g" target="_blank"><img src="http://khrolenok.ru/support_bitcoin.png" alt="Bitcoin" width="150"><br>
-16yfCfz9dZ8y8yuSwBFVfiAa3CNYdMh7Ts</a>
-</p>
+<p align="center"><a href="https://www.patreon.com/join/limych?" target="_blank"><img src="http://khrolenok.ru/support_patreon.png" alt="Patreon" width="250" height="48"></a></p>
+
+| Bitcoin                                                                                                                                                                                                                  | Ethereum                                                                                                                         | Monero                                                                                                                                                                              |
+|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| <a href="https://sochain.com/address/BTC/16yfCfz9dZ8y8yuSwBFVfiAa3CNYdMh7Ts" target="_blank"><img alt="Bitcoin" src="http://khrolenok.ru/support_btc.png" width="200"/></a><pre>16yfCfz9dZ8y8yuSwBFVfiAa3CNYdMh7Ts</pre> | <img alt="Ethereum" src="http://khrolenok.ru/support_eth.png" width="200"/><pre>0x9FB9429f9A85Fa2395Bb59e50452F64977435d61</pre> | <img alt="Monero" src="http://khrolenok.ru/support_xmr.png" width="200"/><pre>48Kt2ksKYxHg46T5sJ7feBXtndHhxk1JgYJwtwGG8Jb7asNFShRwUDtFgX2UvVThXa5GGyGbMCfNJX7YwFZBRDX43q4mT83</pre> |
 
 ### Configuration Variables
 
@@ -178,11 +178,20 @@ I put a lot of work into making this repo and component available and updated to
 **count**:\
   Total count of processed values of source sensors.
 
-**min**:\
+**min_value**:\
   Minimum value of processed values of source sensors.
 
-**max**:\
+**min_datetime**:\
+  Date and time of minimum value of processed values of source sensors (if period was set).
+
+**max_value**:\
   Maximum value of processed values of source sensors.
+
+**max_datetime**:\
+  Date and time of maximum value of processed values of source sensors (if period was set).
+
+**trending_towards**:\
+  The predicted value if monitored entities keep their current states for the remainder of the period. Requires "end" configuration variable to be set to actual end of period and not now().
 
 ## Time periods
 
@@ -223,12 +232,11 @@ The duration variable is used when the time period is fixed.  Different syntaxes
 
 <p align="center">* * *</p>
 I put a lot of work into making this repo and component available and updated to inspire and help others! I will be glad to receive thanks from you — it will give me new strength and add enthusiasm:
-<p align="center"><br>
-<a href="https://www.patreon.com/join/limych?" target="_blank"><img src="http://khrolenok.ru/support_patreon.png" alt="Patreon" width="250" height="48"></a>
-<br>or&nbsp;support via Bitcoin or Etherium:<br>
-<a href="https://sochain.com/a/mjz640g" target="_blank"><img src="http://khrolenok.ru/support_bitcoin.png" alt="Bitcoin" width="150"><br>
-16yfCfz9dZ8y8yuSwBFVfiAa3CNYdMh7Ts</a>
-</p>
+<p align="center"><a href="https://www.patreon.com/join/limych?" target="_blank"><img src="http://khrolenok.ru/support_patreon.png" alt="Patreon" width="250" height="48"></a></p>
+
+| Bitcoin                                                                                                                                                                                                                  | Ethereum                                                                                                                         | Monero                                                                                                                                                                              |
+|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| <a href="https://sochain.com/address/BTC/16yfCfz9dZ8y8yuSwBFVfiAa3CNYdMh7Ts" target="_blank"><img alt="Bitcoin" src="http://khrolenok.ru/support_btc.png" width="200"/></a><pre>16yfCfz9dZ8y8yuSwBFVfiAa3CNYdMh7Ts</pre> | <img alt="Ethereum" src="http://khrolenok.ru/support_eth.png" width="200"/><pre>0x9FB9429f9A85Fa2395Bb59e50452F64977435d61</pre> | <img alt="Monero" src="http://khrolenok.ru/support_xmr.png" width="200"/><pre>48Kt2ksKYxHg46T5sJ7feBXtndHhxk1JgYJwtwGG8Jb7asNFShRwUDtFgX2UvVThXa5GGyGbMCfNJX7YwFZBRDX43q4mT83</pre> |
 
 ### Examples
 
@@ -325,6 +333,8 @@ The original setup of this component is by [Andrey "Limych" Khrolenok](https://g
 For a full list of all authors and contributors,
 check [the contributor's page][contributors].
 
+This Home Assistant custom component was created and is updated using the [HA-Blueprint template](https://github.com/Limych/ha-blueprint). You can use this template to maintain your own Home Assistant custom components.
+
 ## License
 
 creative commons Attribution-NonCommercial-ShareAlike 4.0 International License
@@ -335,9 +345,10 @@ See separate [license file](LICENSE.md) for full text.
 
 [component]: https://github.com/Limych/ha-average
 [commits-shield]: https://img.shields.io/github/commit-activity/y/Limych/ha-average.svg?style=popout
-[commits]: https://github.com/Limych/ha-average/commits/master
+[commits]: https://github.com/Limych/ha-average/commits/dev
 [hacs-shield]: https://img.shields.io/badge/HACS-Default-orange.svg?style=popout
 [hacs]: https://hacs.xyz
+[hacs-repository]: https://my.home-assistant.io/redirect/hacs_repository/?owner=Limych&repository=ha-average&category=integration
 [exampleimg]: https://github.com/Limych/ha-average/raw/dev/example.png
 [forum-shield]: https://img.shields.io/badge/community-forum-brightgreen.svg?style=popout
 [forum]: https://community.home-assistant.io/t/average-sensor/111674
